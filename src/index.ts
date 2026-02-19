@@ -1,8 +1,12 @@
 import * as Lark from "@larksuiteoapi/node-sdk";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { runClaudeAgent } from "./core/agent";
+import { ConversationRouter } from "./core/router";
+import { FileRouterStateStore } from "./core/state-store";
+import type { RouterIncomingMessage } from "./core/types";
 
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID;
 const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET;
+const ASSISTANT_NAME = process.env.ASSISTANT_NAME || "Andy";
 
 if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
   console.error("Error: FEISHU_APP_ID and FEISHU_APP_SECRET must be set in .env");
@@ -21,27 +25,19 @@ const client = new Lark.Client({
   domain: Lark.Domain.Feishu,
 });
 
-async function askAgent(prompt: string): Promise<string> {
-  const chunks: string[] = [];
+const stateStore = new FileRouterStateStore();
+const router = new ConversationRouter({
+  assistantName: ASSISTANT_NAME,
+  stateStore,
+  runAgent: runClaudeAgent,
+});
 
-  for await (const event of query({
-    prompt,
-    options: {
-      maxTurns: 10,
-      permissionMode: "bypassPermissions",
-    },
-  })) {
-    if (event.type === "assistant") {
-      for (const block of event.message.content) {
-        if (block.type === "text") {
-          chunks.push(block.text);
-        }
-      }
-    }
+function parseTextContent(rawContent: string): string {
+  try {
+    return (JSON.parse(rawContent) as { text?: string }).text ?? "";
+  } catch {
+    return rawContent;
   }
-
-  const result = chunks.join("").trim();
-  return result || "（Agent 未返回任何内容）";
 }
 
 async function replyToMessage(messageId: string, text: string): Promise<void> {
@@ -62,32 +58,33 @@ const dispatcher = new Lark.EventDispatcher({}).register({
       return;
     }
 
-    if (sender.sender_type !== "user") {
+    const incoming: RouterIncomingMessage = {
+      chatId: message.chat_id,
+      messageId: message.message_id,
+      senderType: sender.sender_type === "user" ? "user" : "unknown",
+      text: parseTextContent(message.content),
+      timestamp: new Date().toISOString(),
+    };
+
+    const normalized = incoming.text.trim();
+    if (!normalized) {
       return;
     }
 
-    let userText: string;
-    try {
-      userText = (JSON.parse(message.content) as { text?: string }).text ?? "";
-    } catch {
-      userText = message.content;
-    }
-
-    userText = userText.trim();
-    if (!userText) {
-      return;
-    }
-
-    console.log(`[recv] chat=${message.chat_id} msg="${userText}"`);
+    console.log(`[recv] chat=${incoming.chatId} msg="${normalized}"`);
 
     try {
-      const reply = await askAgent(userText);
-      console.log(`[send] msg_id=${message.message_id} reply="${reply.slice(0, 80)}..."`);
-      await replyToMessage(message.message_id, reply);
+      const decision = await router.handleIncoming(incoming);
+      if (!decision.replyText) {
+        return;
+      }
+
+      console.log(`[send] msg_id=${incoming.messageId} reply="${decision.replyText.slice(0, 80)}..."`);
+      await replyToMessage(incoming.messageId, decision.replyText);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`[error] ${errMsg}`);
-      await replyToMessage(message.message_id, `出错了：${errMsg}`).catch(() => {});
+      await replyToMessage(incoming.messageId, `${ASSISTANT_NAME}: 出错了：${errMsg}`).catch(() => {});
     }
   },
 });

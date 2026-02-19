@@ -1,0 +1,11 @@
+{
+  "sessions": {
+    "oc_15e37b984dbe9a43cf4822f113dc7aa5": "4fe4e21a-598d-4b5f-a12c-117c5ed7161d"
+  },
+  "processedMessageIds": [
+    "om_x100b565bf1bca8a0b4aff08e2c3ff12"
+  ],
+  "lastProcessedMessageByChat": {
+    "oc_15e37b984dbe9a43cf4822f113dc7aa5": "om_x100b565becc2f0a0b26d7d8ea78ee58"
+  }
+}
