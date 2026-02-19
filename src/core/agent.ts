@@ -83,6 +83,8 @@ export async function runClaudeAgent(input: AgentRunInput): Promise<AgentRunOutp
       for (const block of event.message.content) {
         if (block?.type === "text" && typeof block.text === "string") {
           chunks.push(block.text);
+        } else if (block?.type === "tool_use" && input.onToolUse) {
+          input.onToolUse(block.name as string, (block.input ?? {}) as Record<string, unknown>);
         }
       }
     }

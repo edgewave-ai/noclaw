@@ -26,10 +26,23 @@ const client = new Lark.Client({
 });
 
 const stateStore = new FileRouterStateStore();
+
+async function sendMessage(chatId: string, text: string): Promise<void> {
+  await client.im.v1.message.create({
+    params: { receive_id_type: "chat_id" },
+    data: {
+      receive_id: chatId,
+      content: JSON.stringify({ text }),
+      msg_type: "text",
+    },
+  });
+}
+
 const router = new ConversationRouter({
   assistantName: ASSISTANT_NAME,
   stateStore,
   runAgent: runClaudeAgent,
+  sendMessage,
 });
 
 function parseTextContent(rawContent: string): string {

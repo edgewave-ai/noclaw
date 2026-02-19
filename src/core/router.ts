@@ -8,6 +8,7 @@ export class ConversationRouter {
       assistantName: string;
       stateStore: RouterStateStore;
       runAgent: AgentRunner;
+      sendMessage?: (chatId: string, text: string) => Promise<void>;
     },
   ) {}
 
@@ -38,10 +39,17 @@ export class ConversationRouter {
 
     const sessionId = this.deps.stateStore.getSession(message.chatId);
     const contextualPrompt = this.buildContextPrompt(message.chatId, text);
+    const { sendMessage } = this.deps;
     const result = await this.deps.runAgent({
       chatId: message.chatId,
       prompt: contextualPrompt,
       sessionId,
+      onToolUse: sendMessage
+        ? (toolName, toolInput) => {
+            const command = typeof toolInput.command === "string" ? toolInput.command : JSON.stringify(toolInput);
+            sendMessage(message.chatId, `🔧 ${toolName}: ${command}`).catch(() => {});
+          }
+        : undefined,
     });
 
     if (result.sessionId) {

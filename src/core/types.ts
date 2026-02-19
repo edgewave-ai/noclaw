@@ -10,6 +10,7 @@ export interface AgentRunInput {
   chatId: string;
   prompt: string;
   sessionId?: string;
+  onToolUse?: (toolName: string, input: Record<string, unknown>) => void;
 }
 
 export interface AgentRunOutput {
