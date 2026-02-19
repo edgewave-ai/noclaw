@@ -50,6 +50,18 @@ async function replyToMessage(messageId: string, text: string): Promise<void> {
   });
 }
 
+async function addReaction(messageId: string, emojiType: string): Promise<void> {
+  try {
+    await client.im.v1.messageReaction.create({
+      path: { message_id: messageId },
+      data: { reaction_type: { emoji_type: emojiType } },
+    });
+  } catch {
+    // reaction 失败不影响主流程
+  }
+}
+
+
 const dispatcher = new Lark.EventDispatcher({}).register({
   "im.message.receive_v1": async (data) => {
     const { message, sender } = data;
@@ -73,8 +85,11 @@ const dispatcher = new Lark.EventDispatcher({}).register({
 
     console.log(`[recv] chat=${incoming.chatId} msg="${normalized}"`);
 
+    await addReaction(incoming.messageId, "MeMeMe");
+
     try {
       const decision = await router.handleIncoming(incoming);
+
       if (!decision.replyText) {
         return;
       }
