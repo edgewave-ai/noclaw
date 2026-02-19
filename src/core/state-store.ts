@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { RouterStateStore } from "./types";
 
 const PROCESSED_MSG_LIMIT = 200;
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 type RouterState = {
   sessions: Record<string, string>;
@@ -34,12 +36,26 @@ function saveJson(filePath: string, data: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+function resolveDefaultDataDir(): string {
+  const configuredDataDir = process.env.ROUTER_DATA_DIR?.trim();
+  if (configuredDataDir) {
+    return path.resolve(configuredDataDir);
+  }
+
+  const cwdDataDir = path.resolve(process.cwd(), "data");
+  if (fs.existsSync(cwdDataDir)) {
+    return cwdDataDir;
+  }
+
+  return path.join(PROJECT_ROOT, "data");
+}
+
 export class FileRouterStateStore implements RouterStateStore {
   private readonly stateFile: string;
   private readonly archivedFile: string;
   private state: RouterState;
 
-  constructor(dataDir = path.resolve(process.cwd(), "data")) {
+  constructor(dataDir = resolveDefaultDataDir()) {
     this.stateFile = path.join(dataDir, "router_state.json");
     this.archivedFile = path.join(dataDir, "archived_sessions.json");
     const loaded = loadJson<Partial<RouterState>>(this.stateFile, {});
