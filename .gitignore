@@ -15,9 +15,8 @@ logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
-# runtime state
-data/router_state.json
-data/archived_sessions.json
+# runtime state (memory, preferences, sessions)
+data/
 
 # dotenv environment variable files
 .env
