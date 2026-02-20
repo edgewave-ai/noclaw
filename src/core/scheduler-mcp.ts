@@ -17,13 +17,31 @@ function generateId(): string {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function parseDuration(value: string): number {
+  const pure = parseInt(value, 10);
+  if (/^\d+$/.test(value.trim())) return pure;
+
+  const match = value.match(/^(\d+)\s*(s|sec|second|seconds|m|min|minute|minutes|h|hour|hours|d|day|days)$/i);
+  if (!match) return NaN;
+
+  const n = parseInt(match[1]!, 10);
+  const unit = match[2]!.toLowerCase();
+  if (unit.startsWith("s")) return n * 1000;
+  if (unit.startsWith("m")) return n * 60_000;
+  if (unit.startsWith("h")) return n * 3600_000;
+  if (unit.startsWith("d")) return n * 86400_000;
+  return NaN;
+}
+
 function computeNextRun(scheduleType: string, scheduleValue: string): string | null {
   if (scheduleType === "cron") {
     const expr = CronExpressionParser.parse(scheduleValue, { tz: TIMEZONE });
     return expr.next().toISOString();
   }
   if (scheduleType === "interval") {
-    return new Date(Date.now() + parseInt(scheduleValue, 10)).toISOString();
+    const ms = parseDuration(scheduleValue);
+    if (isNaN(ms) || ms <= 0) return null;
+    return new Date(Date.now() + ms).toISOString();
   }
   if (scheduleType === "once") {
     const t = new Date(scheduleValue);
@@ -32,14 +50,21 @@ function computeNextRun(scheduleType: string, scheduleValue: string): string | n
   return null;
 }
 
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function toLocalTime(iso: string | null): string {
+  if (!iso) return "N/A";
+  return new Date(iso).toLocaleString("zh-CN", { timeZone: LOCAL_TZ });
+}
+
 function formatTask(task: ScheduledTask): string {
   return [
     `ID: ${task.id}`,
     `Prompt: ${task.prompt}`,
     `Schedule: ${task.scheduleType} (${task.scheduleValue})`,
     `Status: ${task.status}`,
-    `Next run: ${task.nextRun ?? "N/A"}`,
-    `Last run: ${task.lastRun ?? "Never"}`,
+    `Next run: ${task.nextRun ? toLocalTime(task.nextRun) : "N/A"}`,
+    `Last run: ${task.lastRun ? toLocalTime(task.lastRun) : "Never"}`,
     `Last result: ${task.lastResult ?? "N/A"}`,
   ].join("\n");
 }

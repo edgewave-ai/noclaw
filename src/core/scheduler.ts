@@ -1,5 +1,5 @@
-import { CronExpressionParser } from "cron-parser";
 import { getDueTasks, getTaskById, updateTaskAfterRun, logTaskRun } from "./task-db";
+import { computeNextRun } from "./scheduler-mcp";
 import type { ScheduledTask } from "./types";
 
 const POLL_INTERVAL = 60_000;
@@ -10,23 +10,12 @@ export interface SchedulerDeps {
   sendMessage: (chatId: string, text: string) => Promise<void>;
 }
 
-function computeNextRun(task: ScheduledTask): string | null {
-  if (task.scheduleType === "cron") {
-    const expr = CronExpressionParser.parse(task.scheduleValue, { tz: TIMEZONE });
-    return expr.next().toISOString();
-  }
-  if (task.scheduleType === "interval") {
-    const ms = parseInt(task.scheduleValue, 10);
-    return new Date(Date.now() + ms).toISOString();
-  }
-  return null;
-}
-
-let running = false;
+const runningTasks = new Set<string>();
+let started = false;
 
 export function startScheduler(deps: SchedulerDeps): void {
-  if (running) return;
-  running = true;
+  if (started) return;
+  started = true;
   console.log("[scheduler] started, polling every 60s");
 
   const poll = async () => {
@@ -37,6 +26,8 @@ export function startScheduler(deps: SchedulerDeps): void {
       }
 
       for (const task of dueTasks) {
+        if (runningTasks.has(task.id)) continue;
+
         const current = getTaskById(task.id);
         if (!current || current.status !== "active") continue;
 
@@ -53,6 +44,7 @@ export function startScheduler(deps: SchedulerDeps): void {
 }
 
 async function runTask(task: ScheduledTask, deps: SchedulerDeps): Promise<void> {
+  runningTasks.add(task.id);
   const startTime = Date.now();
   console.log(`[scheduler] running task ${task.id}: "${task.prompt.slice(0, 60)}"`);
 
@@ -67,6 +59,8 @@ async function runTask(task: ScheduledTask, deps: SchedulerDeps): Promise<void> 
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     console.error(`[scheduler] task ${task.id} failed:`, error);
+  } finally {
+    runningTasks.delete(task.id);
   }
 
   const durationMs = Date.now() - startTime;
@@ -80,9 +74,10 @@ async function runTask(task: ScheduledTask, deps: SchedulerDeps): Promise<void> 
     error,
   });
 
-  const nextRun = computeNextRun(task);
+  const nextRun = computeNextRun(task.scheduleType, task.scheduleValue);
   const summary = error ? `Error: ${error}` : (result?.slice(0, 200) ?? "Completed");
   updateTaskAfterRun(task.id, nextRun, summary);
 
-  console.log(`[scheduler] task ${task.id} done in ${durationMs}ms, next: ${nextRun ?? "none"}`);
+  const nextLocal = nextRun ? new Date(nextRun).toLocaleString("zh-CN", { timeZone: TIMEZONE }) : "none";
+  console.log(`[scheduler] task ${task.id} done in ${durationMs}ms, next: ${nextLocal}`);
 }
