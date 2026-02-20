@@ -57,6 +57,7 @@ export async function runClaudeAgent(input: AgentRunInput): Promise<AgentRunOutp
     maxTurns: 10,
     permissionMode,
     allowedTools: ALLOWED_TOOLS,
+    settingSources: ["user", "project"],
     systemPrompt: {
       type: "preset",
       preset: "claude_code",
