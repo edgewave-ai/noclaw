@@ -48,10 +48,9 @@ function resolvePermissionMode(): NonNullable<Options["permissionMode"]> {
 export async function runClaudeAgent(input: AgentRunInput): Promise<AgentRunOutput> {
   const sessionId = input.sessionId;
   let newSessionId: string | undefined;
-  let result: string | null = null;
   const chunks: string[] = [];
 
-  const systemPrompt = getSystemPrompt();
+  const systemPrompt = getSystemPrompt(input.chatId);
   const permissionMode = resolvePermissionMode();
 
   const options: Options = {
@@ -90,10 +89,10 @@ export async function runClaudeAgent(input: AgentRunInput): Promise<AgentRunOutp
     }
   }
 
-  result = chunks.join("").trim();
+  const result = chunks.join("").trim();
 
   return {
-    text: result || "（Agent 未返回任何内容）",
+    text: result || "(Agent returned no content)",
     sessionId: newSessionId || sessionId,
   };
 }

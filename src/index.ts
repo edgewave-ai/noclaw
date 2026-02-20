@@ -75,6 +75,8 @@ async function addReaction(messageId: string, emojiType: string): Promise<void> 
 }
 
 
+const processingMessages = new Set<string>();
+
 const dispatcher = new Lark.EventDispatcher({}).register({
   "im.message.receive_v1": async (data) => {
     const { message, sender } = data;
@@ -82,6 +84,11 @@ const dispatcher = new Lark.EventDispatcher({}).register({
     if (message.message_type !== "text") {
       return;
     }
+
+    if (processingMessages.has(message.message_id)) {
+      return;
+    }
+    processingMessages.add(message.message_id);
 
     const incoming: RouterIncomingMessage = {
       chatId: message.chat_id,
@@ -93,6 +100,7 @@ const dispatcher = new Lark.EventDispatcher({}).register({
 
     const normalized = incoming.text.trim();
     if (!normalized) {
+      processingMessages.delete(message.message_id);
       return;
     }
 
@@ -113,6 +121,8 @@ const dispatcher = new Lark.EventDispatcher({}).register({
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`[error] ${errMsg}`);
       await replyToMessage(incoming.messageId, `${ASSISTANT_NAME}: 出错了：${errMsg}`).catch(() => {});
+    } finally {
+      processingMessages.delete(message.message_id);
     }
   },
 });

@@ -32,8 +32,8 @@ export class ConversationRouter {
       this.deps.stateStore.save();
       return {
         replyText: hadSession
-          ? `${this.deps.assistantName}: 会话已清空，下次将从全新上下文开始。`
-          : `${this.deps.assistantName}: 当前没有可清空的会话。`,
+          ? `${this.deps.assistantName}: Session cleared. Next message will start with a fresh context.`
+          : `${this.deps.assistantName}: No session to clear.`,
       };
     }
 
@@ -57,7 +57,7 @@ export class ConversationRouter {
     }
     this.deps.stateStore.save();
 
-    const reply = result.text.trim() || "（Agent 未返回任何内容）";
+    const reply = result.text.trim() || "(Agent returned no content)";
     return { replyText: `${this.deps.assistantName}: ${reply}` };
   }
 
