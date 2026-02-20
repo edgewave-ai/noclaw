@@ -2,6 +2,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentRunInput, AgentRunOutput } from "./types";
 import { getSystemPrompt } from "./system-prompt";
+import { createSchedulerMcp } from "./scheduler-mcp";
 
 const ALLOWED_TOOLS = [
   "Bash",
@@ -22,6 +23,11 @@ const ALLOWED_TOOLS = [
   "ToolSearch",
   "Skill",
   "NotebookEdit",
+  "mcp__scheduler__schedule_task",
+  "mcp__scheduler__list_tasks",
+  "mcp__scheduler__pause_task",
+  "mcp__scheduler__resume_task",
+  "mcp__scheduler__cancel_task",
 ];
 
 const PERMISSION_MODES: ReadonlyArray<NonNullable<Options["permissionMode"]>> = [
@@ -62,6 +68,9 @@ export async function runClaudeAgent(input: AgentRunInput): Promise<AgentRunOutp
       type: "preset",
       preset: "claude_code",
       append: systemPrompt,
+    },
+    mcpServers: {
+      scheduler: createSchedulerMcp(input.chatId),
     },
   };
 

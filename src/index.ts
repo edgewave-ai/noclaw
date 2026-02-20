@@ -2,6 +2,8 @@ import * as Lark from "@larksuiteoapi/node-sdk";
 import { runClaudeAgent } from "./core/agent";
 import { ConversationRouter } from "./core/router";
 import { FileRouterStateStore } from "./core/state-store";
+import { initTaskDb } from "./core/task-db";
+import { startScheduler } from "./core/scheduler";
 import type { RouterIncomingMessage } from "./core/types";
 
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID;
@@ -130,6 +132,15 @@ const dispatcher = new Lark.EventDispatcher({}).register({
 const wsClient = new Lark.WSClient({
   appId: FEISHU_APP_ID,
   appSecret: FEISHU_APP_SECRET,
+});
+
+initTaskDb();
+startScheduler({
+  runAgent: async (prompt) => {
+    const result = await runClaudeAgent({ chatId: "scheduler", prompt });
+    return result.text;
+  },
+  sendMessage,
 });
 
 console.log("Starting Feishu Bot via WebSocket long connection...");

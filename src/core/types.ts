@@ -34,3 +34,25 @@ export interface RouterDecision {
   skipped?: boolean;
   reason?: string;
 }
+
+export interface ScheduledTask {
+  id: string;
+  chatId: string;
+  prompt: string;
+  scheduleType: "cron" | "interval" | "once";
+  scheduleValue: string;
+  nextRun: string | null;
+  lastRun: string | null;
+  lastResult: string | null;
+  status: "active" | "paused" | "completed";
+  createdAt: string;
+}
+
+export interface TaskRunLog {
+  taskId: string;
+  runAt: string;
+  durationMs: number;
+  status: "success" | "error";
+  result: string | null;
+  error: string | null;
+}
